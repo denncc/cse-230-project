@@ -57,6 +57,8 @@ handleEvent (VtyEvent (V.EvKey key [])) = do
     V.KChar '8' -> modifyCell 8 game
     V.KChar '9' -> modifyCell 9 game
     V.KBS       -> modifyCell 0 game
+    V.KEnter    -> solveGame game
+    _           -> game
 handleEvent _ = continueWithoutRedraw
 
 drawBoard :: Game -> Widget ()

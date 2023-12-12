@@ -19,11 +19,12 @@ extra-source-files:  CHANGELOG.md
 executable sudoku
   main-is:             Main.hs
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N -fforce-recomp
-  other-modules:       UI, Game
+  other-modules:       UI, Game, Solver
   -- other-extensions:
   build-depends:       base >=4.13 && <4.14
                       , brick
                       , vty
                       , microlens
+                      , QuickCheck
   hs-source-dirs:      .
   default-language:    Haskell2010
