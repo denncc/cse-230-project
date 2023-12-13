@@ -15,6 +15,7 @@ import Data.Bool (Bool)
 styleCursor, styleCellGiven, styleCellInput, styleCellNote :: AttrName
 styleSolved, styleUnsolved :: AttrName
 styleCursor    = attrName "styleCursor"
+styleDiag    = attrName "styleDiag"
 styleCellGiven = attrName "styleCellGiven"
 styleCellInput = attrName "styleCellInput"
 styleCellNote  = attrName "styleCellNote"
@@ -24,6 +25,7 @@ styleUnsolved  = attrName "styleUnsolved"
 attributes :: AttrMap
 attributes = attrMap V.defAttr
   [ (styleCursor    , bg V.brightBlack)
+  , (styleDiag      , bg V.blue)
   , (styleCellGiven , V.defAttr)
   , (styleCellInput , fg V.blue)
   , (styleCellNote  , fg V.yellow)
@@ -62,34 +64,29 @@ handleEvent (VtyEvent (V.EvKey key [])) = do
     _           -> game
 handleEvent _ = continueWithoutRedraw
 
+createElement :: (Int, Int)-> (Int, Int) -> Element -> Widget ()
+createElement pos@(x,y) cursor e
+  | pos==cursor     = withAttr styleCursor $ mapElement e
+  | x==y || x+y==8  = withAttr styleDiag $ mapElement e
+  | otherwise       = mapElement e
 drawBoard :: Game -> Widget ()
 drawBoard game = borderWithLabel (str "Board") $ renderTable $ table $ map (map mapElementWithCursor) $ grid game
   where
-    mapElement :: Element -> Widget ()
-    mapElement Nothing = str " "
-    mapElement (Just v) = str $ show v
+      mapElement :: Element -> Widget ()
+      mapElement Nothing = str " "
+      mapElement (Just v) = str $ show v
 
-    mapElementWithCursor :: Element -> Widget ()
-    mapElementWithCursor elem = 
-      if isCursor elem game 
-        then withAttr styleCursor (mapElement elem) 
-        else mapElement elem
-    
-isCursor :: Element -> Game -> Bool
-isCursor elem game = elem == getElementAtCursor game
 
-getElementAtCursor :: Game -> Element
-getElementAtCursor game = getElementRow (cursor game) (grid game)
-  where getElementRow :: (Int, Int) -> Grid -> Element
-        getElementRow (row, col) (r:rs) = case row of
-          0 -> getElementCol col r
-            where 
-              getElementCol col (c:cs) = case col of
-                0 -> c
-                _ -> getElementCol (col - 1) cs
-              getElementCol _ _ = Nothing
-          _ -> getElementRow (row - 1, col) rs
-        getElementRow _ _ = Nothing
+createByCol :: (Int, Int)-> (Int, Int) -> Row -> [Widget ()]
+createByCol pos@(row,col) cursor (c:cs) = createElement pos cursor c:createByCol (row,col+1) cursor cs
+createByCol _ _ _ = []
+
+createByRow :: Int -> (Int, Int) -> Grid -> [[Widget ()]]
+createByRow row cursor (r:rs) = createByCol (row,0) cursor r:createByRow (row+1) cursor rs
+createByRow _ _ _ = []
+
+drawBoard :: Game -> Widget ()
+drawBoard game = borderWithLabel (str "Board") $ renderTable $ table $ createByRow 0 (cursor game) (grid game)
 
 drawInstruction :: Widget ()
 drawInstruction = borderWithLabel (str "Instruction") $ vBox $ map str [
