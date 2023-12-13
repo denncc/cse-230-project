@@ -14,6 +14,7 @@ import Game
 styleCursor, styleCellGiven, styleCellInput, styleCellNote :: AttrName
 styleSolved, styleUnsolved :: AttrName
 styleCursor    = attrName "styleCursor"
+styleDiag    = attrName "styleDiag"
 styleCellGiven = attrName "styleCellGiven"
 styleCellInput = attrName "styleCellInput"
 styleCellNote  = attrName "styleCellNote"
@@ -23,6 +24,7 @@ styleUnsolved  = attrName "styleUnsolved"
 attributes :: AttrMap
 attributes = attrMap V.defAttr
   [ (styleCursor    , bg V.brightBlack)
+  , (styleDiag      , bg V.blue)
   , (styleCellGiven , V.defAttr)
   , (styleCellInput , fg V.blue)
   , (styleCellNote  , fg V.yellow)
@@ -61,12 +63,27 @@ handleEvent (VtyEvent (V.EvKey key [])) = do
     _           -> game
 handleEvent _ = continueWithoutRedraw
 
-drawBoard :: Game -> Widget ()
-drawBoard game = borderWithLabel (str "Board") $ renderTable $ table $ map (map mapElement) $ grid game
+createElement :: (Int, Int)-> (Int, Int) -> Element -> Widget ()
+createElement pos@(x,y) cursor e
+  | pos==cursor     = withAttr styleCursor $ mapElement e
+  | x==y || x+y==8  = withAttr styleDiag $ mapElement e
+  | otherwise       = mapElement e
   where
-    mapElement :: Element -> Widget ()
-    mapElement Nothing = str " "
-    mapElement (Just v) = str $ show v
+      mapElement :: Element -> Widget ()
+      mapElement Nothing = str " "
+      mapElement (Just v) = str $ show v
+
+
+createByCol :: (Int, Int)-> (Int, Int) -> Row -> [Widget ()]
+createByCol pos@(row,col) cursor (c:cs) = createElement pos cursor c:createByCol (row,col+1) cursor cs
+createByCol _ _ _ = []
+
+createByRow :: Int -> (Int, Int) -> Grid -> [[Widget ()]]
+createByRow row cursor (r:rs) = createByCol (row,0) cursor r:createByRow (row+1) cursor rs
+createByRow _ _ _ = []
+
+drawBoard :: Game -> Widget ()
+drawBoard game = borderWithLabel (str "Board") $ renderTable $ table $ createByRow 0 (cursor game) (grid game)
 
 drawInstruction :: Widget ()
 drawInstruction = borderWithLabel (str "Instruction") $ vBox $ map str [
