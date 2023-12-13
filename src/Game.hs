@@ -9,16 +9,18 @@ type Grid=[Row]
 data Game = Game {
   cursor :: (Int, Int),
   grid :: Grid,
-  previous :: Maybe Game
+  previous :: Maybe Game,
+  message :: String
 }
 
 data Direction = Up | Down | Left | Right
 
 resetGame :: Game -> Game
-resetGame game = Game { 
+resetGame game = Game {
   cursor = cursor game,
   grid = map (map f) $ grid game,
-  previous = Just game }
+  previous = Just game,
+  message = "" }
   where
     f _ = Nothing
 
@@ -40,16 +42,17 @@ modifyCell :: Int -> Game -> Game
 modifyCell val game = Game {
   cursor = cursor game,
   grid = modifyRow (cursor game) val $ grid game,
-  previous = Just game
+  previous = Just game,
+  message = message game
 }
   where
-    modifyRow (x,y) val (r:rs) = case x of 
+    modifyRow (x,y) val (r:rs) = case x of
       0 -> modifyCol y val r:rs
       _ -> r:modifyRow (x-1,y) val rs
       where
         modifyCol col val (c:cs) = case col of
-          0 -> case val of 
-            0 -> Nothing 
+          0 -> case val of
+            0 -> Nothing
             _ -> Just val
             :cs
           _ -> c:modifyCol (col-1) val cs
@@ -57,11 +60,23 @@ modifyCell val game = Game {
     modifyRow _ _ _ = []
 
 solveGame :: Game -> Game
-solveGame game = Game {
-  cursor = cursor game,
-  grid = matrix $ solver $ S $ grid game,
-  previous = Just game
-}
+solveGame game = case solver $ S $ grid game of
+  S grid -> Game {
+    cursor = cursor game,
+    grid = grid,
+    previous = Just game,
+    message = "Solution Found"
+  }
+  Invalid -> game {message = "Invalid Sudoku"}
+  NoSolution -> game {message = "No Solution"}
+
+progress :: Game -> Int
+progress game = round (filled (grid game)/81*100)
+  where
+    filled grid = sum $ map (sum . map cell2int) grid
+      where
+        cell2int Nothing = 0
+        cell2int (Just _) = 1
 
 demoGrid :: Grid
 demoGrid = [[Just 3, Just 5, Just 4, Just 8, Just 7, Nothing, Just 6, Nothing, Just 2],
@@ -80,5 +95,6 @@ demo :: Game
 demo = Game {
   cursor = (4, 4),
   grid = demoGrid,
-  previous = Nothing
+  previous = Nothing,
+  message = "Start of game"
 }

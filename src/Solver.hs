@@ -1,13 +1,13 @@
-module Main where
+module Solver where
 
 import Data.Char
 import Data.List
-import Data.Maybe ( fromJust, isJust, catMaybes, fromMaybe )
+import Data.Maybe ( fromJust, isJust, catMaybes, fromMaybe, isNothing )
 import Test.QuickCheck
 
 -----------------------------------------------------------------------------
 
-data Sudoku = S [[Maybe Int]]
+data Sudoku = S [[Maybe Int]] | Invalid | NoSolution
    deriving(Eq, Show)
 
 matrix :: Sudoku -> [[Maybe Int]]
@@ -28,11 +28,9 @@ noNothing (S mat) = all isJust (concat mat)
 
 
 printS :: Sudoku -> IO ()
-printS sudoku = putStr(foldr (\a b -> a ++ "\n" ++ b) "" (map (map mIntToStr) (matrix sudoku)))
+printS sudoku = putStr(foldr ((\a b -> a ++ "\n" ++ b) . map mIntToStr) "" (matrix sudoku))
   where
-    mIntToStr x = case x of
-      Nothing  -> '.'
-      Just n   -> intToDigit n
+    mIntToStr x = maybe '.' intToDigit x
 
 
 readS :: FilePath -> IO Sudoku
@@ -42,18 +40,16 @@ readS file =
 
 
 listRows :: String -> [String]
-listRows s = lines s
+listRows = lines
 
 
 convert :: String -> [Maybe Int]
 convert = map strToMInt
   where
-    strToMInt c = 
-      if c == '.'
-        then Nothing
-        else if isDigit c
-          then Just (digitToInt c)
-          else error "Invalid sudoku!"
+    strToMInt c
+      | c == '.' = Nothing
+      | isDigit c = Just (digitToInt c)
+      | otherwise = error "Invalid sudoku!"
 
 
 strtoSudoku :: String -> Sudoku
@@ -71,12 +67,11 @@ instance Arbitrary Sudoku where
        return (S mat)
 
 prop_S :: Sudoku -> Bool
-prop_S sudoku = validSudoku sudoku
+prop_S = validSudoku
 
-genS :: Gen (Sudoku)
+genS :: Gen Sudoku
 genS = do
-  s <- arbitrary
-  return s
+  arbitrary
 
 -- unit test for Sudoku generate
 -- main :: IO ()
@@ -88,7 +83,7 @@ checkBlock block = nub (catMaybes block) == catMaybes block
 allblocks :: Sudoku -> [[Maybe Int]]
 allblocks s = rows ++ columns ++ squares++ diagnals
 -- allblocks s = rows ++ columns ++ squares
-  where 
+  where
     rows=matrix s
     columns=transpose (matrix s)
     squares=squaresBlocks s
@@ -118,7 +113,7 @@ diagonalBlocks (S mat) = [firstDiagonal, secondDiagonal]
 -- main :: IO ()
 -- main = quickCheck (forAll genallblocks (\s -> prop_allblocks s))
 
-check :: Sudoku -> Bool  
+check :: Sudoku -> Bool
 check s = all checkBlock (allblocks s)
 
 
@@ -131,17 +126,17 @@ blankR [] = 0
 blankR (x:xs) = case x of
   Just _ -> 1+blankR xs
   _      -> 0
-                       
+
 blankC :: [[Maybe Int]] -> Int
 blankC []     = 0
-blankC (x:xs) = case (blankR x) of
+blankC (x:xs) = case blankR x of
   9 -> 1+blankC xs
   _ -> 0
 
-  
+
 prop_blankPoscheck :: Sudoku -> Bool
-prop_blankPoscheck s = let (x, y) = blankPos s 
-                        in ((matrix s) !! x !!y) == Nothing
+prop_blankPoscheck s = let (x, y) = blankPos s
+                        in isNothing (matrix s !! x !!y)
 
 -- unit test for blankPos
 -- main :: IO ()
@@ -153,18 +148,18 @@ insertElem xs i x = take i xs ++ [x] ++ drop (i + 1) xs
 
 
 prop_insertElem :: [Int] -> Int-> Int -> Property
-prop_insertElem xs i x=  (i>=0 && i<length xs) ==>(insertElem xs i x) !! i == x
+prop_insertElem xs i x=  (i>=0 && i<length xs) ==>insertElem xs i x !! i == x
 
 -- unit test for insertElem
 -- main :: IO ()
 -- main = quickCheck prop_insertElem
 
 update :: Sudoku -> (Int, Int) -> Maybe Int -> Sudoku
-update (S mat) (j, i) x = S(insertElem mat j (insertElem (mat !! j) i x)) 
+update (S mat) (j, i) x = S(insertElem mat j (insertElem (mat !! j) i x))
 
 
 prop_update :: Sudoku -> (Int, Int) -> Maybe Int -> Property
-prop_update s (j, i) x = (x/=Nothing) ==> ((matrix (update s (j, i) x)) !! j) !! i == x
+prop_update s (j, i) x = isJust x ==> (matrix (update s (j, i) x) !! j) !! i == x
 
 genupdateInput :: Gen (Sudoku, (Int, Int), Maybe Int)
 genupdateInput = do
@@ -184,11 +179,11 @@ genupdateInput = do
 
 solver :: Sudoku -> Sudoku
 solver s  | check s = x
-          | otherwise  = error "Invalid Sudoku"
+          | otherwise  = Invalid
         where (x:xs) = checkS [s]
 
 extractsquare :: Sudoku -> (Int, Int) -> [Maybe Int]
-extractsquare (S s) (j, i) = 
+extractsquare (S s) (j, i) =
     [s !! r !! c | r <- gridjIndex, c <- gridiIndex]
     where
         gridj = (j `div` 3) * 3
@@ -197,11 +192,11 @@ extractsquare (S s) (j, i) =
         gridiIndex = [gridi .. gridi + 3 - 1]
 
 possbleInt :: Sudoku -> (Int, Int) -> [Maybe Int]
-possbleInt (S s) pos@(j,i) 
-  |(i==j)&&(i+j==8) = [x | x <- allJust, not (x `elem` (row++col++square++diagnal1++diagnal2))]
-  |(i==j)           = [x | x <- allJust, not (x `elem` (row++col++square++diagnal1))]
-  |(i+j==8)         = [x | x <- allJust, not (x `elem` (row++col++square++diagnal2))]
-  |otherwise        = [x | x <- allJust, not (x `elem` (row++col++square))]
+possbleInt (S s) pos@(j,i)
+  |(i==j)&&(i+j==8) = [x | x <- allJust, x `notElem` (row++col++square++diagnal1++diagnal2)]
+  |i==j           = [x | x <- allJust, x `notElem` (row++col++square++diagnal1)]
+  |i+j==8         = [x | x <- allJust, x `notElem` (row++col++square++diagnal2)]
+  |otherwise        = [x | x <- allJust, x `notElem` (row++col++square)]
   where
     allJust  =[Just x|x<-[1..9]]
     row      =[s !! j !! n | n <- [0..8]]
@@ -212,38 +207,38 @@ possbleInt (S s) pos@(j,i)
     diagnal1 = [s !! n !! n | n <- [0..8]]
     diagnal2 = [s !! n !! (8 - n) | n <- [0..8]]
 
-fillblank :: Sudoku -> (Int, Int) -> [Sudoku] 
-fillblank s pos = map (\i -> update s pos i) ints
-    where 
+fillblank :: Sudoku -> (Int, Int) -> [Sudoku]
+fillblank s pos = map (update s pos) ints
+    where
       ints = possbleInt s pos
-                          
-checkS :: [Sudoku] -> [Sudoku]
-checkS []            = error"No Solution"
-checkS ss@(s:s') 
-  | noNothing   s    = ss
-  | otherwise        = checkS (foldr (\s acc -> (fillblank s (blankPos s)) ++ acc) [] ss) 
-          
 
-main :: IO()
-main = do solvebypath "hard100.sud"
+checkS :: [Sudoku] -> [Sudoku]
+checkS []            = [NoSolution]
+checkS ss@(s:s')
+  | noNothing   s    = ss
+  | otherwise        = checkS (foldr (\s acc -> fillblank s (blankPos s) ++ acc) [] ss)
+
+
+-- main :: IO()
+-- main = do solvebypath "hard100.sud"
 
 
 solvebypath :: FilePath -> IO()
-solvebypath path = do 
+solvebypath path = do
   s <- readS path
   if noNothing s
     then printS s
   else printS(solver s)
-    
-         
+
+
 
 answer :: Sudoku -> Sudoku -> Bool
 answer s s' = check s' && (s' == solver s)
-                         
+
 
 prop_solver :: Sudoku -> Property
-prop_solver s = (check s) ==> answer s s'
-  where s' = (solver s)
+prop_solver s = check s ==> answer s s'
+  where s' = solver s
 
 -- unit test for solver
 -- main :: IO ()
