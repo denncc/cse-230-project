@@ -21,7 +21,7 @@ executable sudoku
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N -fforce-recomp
   other-modules:       UI, Game, Solver
   -- other-extensions:
-  build-depends:       base >=4.13 && <4.14
+  build-depends:       base
                       , brick
                       , vty
                       , microlens
