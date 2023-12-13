@@ -69,16 +69,27 @@ drawBoard game = borderWithLabel (str "Board") $ renderTable $ table $ map (map 
     mapElement (Just v) = str $ show v
 
 drawInstruction :: Widget ()
-drawInstruction = borderWithLabel (str "Instruction") $ hCenter (str "Use ↑, ↓, ←, → to move cursor") <=> hCenter (str "Use 1-9 to fill the selected cell") <=> hCenter (str "Use Backspace to clear number in the selected cell")
+drawInstruction = borderWithLabel (str "Instruction") $ vBox $ map str [
+  "Move: ↑, ↓, ←, →",
+  "Fill num: 1-9",
+  "Erase: Backspace",
+  "Solve: Enter",
+  "Reset: ^R",
+  "Undo: ^Z",
+  "Quit: ^C"
+  ]
 
-drawStatus :: (Int, Int) -> Widget ()
-drawStatus cursor = borderWithLabel (str "Status") $ hCenter (str $ "Cursor: " ++ show cursor) <=> hCenter (str "Progress: 10%")
+drawStatus :: (Int, Int) -> Int -> Widget ()
+drawStatus cursor prog = borderWithLabel (str "Status") $ vBox $ map str [
+  "Cursor: " ++ show cursor,
+  "Progress: " ++ show prog ++ "%"
+  ]
 
-drawResult :: Widget ()
-drawResult = borderWithLabel (str "Result") $ hCenter (str "Solution found")
+drawResult :: String -> Widget ()
+drawResult message = borderWithLabel (str "Result") $ str message
 
 drawUI :: Game -> Widget ()
-drawUI game = drawBoard game <+> (drawInstruction <=> drawStatus (cursor game) <=> drawResult)
+drawUI game = drawBoard game <+> (drawInstruction <=> drawStatus (cursor game) (progress game) <=> drawResult (message game))
 
 app :: App Game () ()
 app = App
