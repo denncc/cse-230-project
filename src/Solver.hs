@@ -218,6 +218,7 @@ fillblank s pos = map (\i -> update s pos i) ints
       ints = possbleInt s pos
                           
 checkS :: [Sudoku] -> [Sudoku]
+checkS []            = error"No Solution"
 checkS ss@(s:s') 
   | noNothing   s    = ss
   | otherwise        = checkS (foldr (\s acc -> (fillblank s (blankPos s)) ++ acc) [] ss) 
