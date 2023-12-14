@@ -220,7 +220,7 @@ checkS ss@(s:s')
 
 
 -- main :: IO()
--- main = do solvebypath "hard100.sud"
+-- main = do solvebypath "100.s"
 
 
 solvebypath :: FilePath -> IO()
