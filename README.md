@@ -18,6 +18,7 @@ This Haskell Puzzle Solver is a command-line application built using the brick l
 
 ### Challenges
 - We encountered difficulties while attempting to build the initial starter code for our project. Faced with this challenge, we engaged in a thorough debugging process to identify and resolve the underlying issues. This involved carefully inspecting the code and tracing the execution flow. Through persistent efforts, we successfully pinpointed the issues and implemented the necessary corrections, ultimately overcoming the obstacles in the starter code development phase.
+- Additionally, we faced challenges when our solver encountered unsolvable Sudoku puzzles. In these cases, the solver would fall into an infinite loop of iterations, spending an excessive amount of time trying all possibilities. This resulted in a significant waste of time and resources, as the solver was unable to efficiently address unsolvable puzzles.
 
 ### Expectation
 - We expect to meet most of our goals by the deadline, except the goal of extensibility.
